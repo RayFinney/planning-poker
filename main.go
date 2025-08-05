@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"planning-poker/application/planningsvc"
 	"planning-poker/delivery/websocket"
 	"planning-poker/infra/in_memory"
@@ -18,7 +19,11 @@ func main() {
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Default port if not set
+	}
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		panic(err)
 	}
 }

@@ -55,6 +55,7 @@
         const cardSelection = document.getElementById('card-selection');
         const modalTitle = document.getElementById('modal-title');
         const modalDescription = document.getElementById('modal-description');
+        const pokerTableTitle = document.querySelector('#poker-table h2');
         let uiRendered = false;
         let currentSessionId = null;
         let currentUsername = null;
@@ -93,6 +94,9 @@
             const allVoteElements = document.querySelectorAll('.player-vote');
             allVoteElements.forEach(el => el.textContent = '');
 
+            let sum = 0;
+            let count = 0;
+
             for (const playerId in votes) {
                 const playerElement = document.querySelector(`[data-player-id="${playerId}"]`);
                 if (playerElement) {
@@ -101,6 +105,10 @@
 
                     if (revealed) {
                         voteElement.textContent = vote;
+                        if (typeof vote === 'number') {
+                            sum += vote;
+                            count++;
+                        }
                     } else {
                         if (playerId === currentPlayerId && currentVote !== null) {
                             voteElement.textContent = currentVote;
@@ -109,6 +117,13 @@
                         }
                     }
                 }
+            }
+
+            if (revealed) {
+                const average = count > 0 ? (sum / count).toFixed(1) : 0;
+                pokerTableTitle.textContent = `Average: ${average}`;
+            } else {
+                pokerTableTitle.textContent = 'Pick your cards!';
             }
         }
 
@@ -139,8 +154,6 @@
                 // Hide modal and show poker table
                 startModal.classList.add('hidden');
                 gameArea.classList.remove('hidden');
-                cardSelection.classList.remove('hidden');
-
 
                 // Open WebSocket connection
                 ws = new WebSocket('ws://' + window.location.host + '/ws');
@@ -300,6 +313,7 @@
 
         function renderCardSelection() {
             const cardSelectionContainer = document.getElementById('card-selection');
+            cardSelectionContainer.innerHTML = '';
             const cards = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
 
             cards.forEach(cardValue => {
