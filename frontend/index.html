@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Poker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-image: url('https://images.unsplash.com/photo-1542372147-955393852459?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center;
+        }
+        .backdrop-blur-lg {
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="relative min-h-screen flex items-center justify-center bg-gray-900 text-white">
+    <div class="absolute inset-0 backdrop-blur-lg"></div>
+    <div id="game-area" class="hidden relative w-full h-full flex flex-col items-center justify-center">
+        <div id="top-players" class="w-full flex-grow flex items-center justify-center space-x-4">
+            <!-- Players rendered here -->
+        </div>
+        <div id="poker-table" class="w-full max-w-4xl mx-auto flex flex-col items-center">
+            <div class="w-full h-64 bg-blue-800 rounded-lg flex items-center justify-center relative flex-col">
+                <h2 class="text-3xl font-bold">Pick your cards!</h2>
+                <div id="reveal-button-container"></div>
+            </div>
+        </div>
+        <div id="bottom-players" class="w-full flex-grow flex items-center justify-center space-x-4">
+            <!-- Players rendered here -->
+        </div>
+    </div>
+
+    <div id="card-selection" class="fixed bottom-0 left-0 right-0 flex justify-center space-x-2 p-4 bg-gray-800 bg-opacity-75 hidden">
+        <!-- Cards will be inserted here by JavaScript -->
+    </div>
+
+    <!-- Centered Modal -->
+    <div id="start-modal" class="relative bg-gray-800 bg-opacity-75 p-8 rounded-xl shadow-lg text-center">
+        <h1 id="modal-title" class="text-4xl font-bold mb-4">Planning Poker</h1>
+        <p id="modal-description" class="text-lg mb-8">Join a session to start planning.</p>
+        <div class="flex flex-col items-center">
+            <input type="text" id="username" placeholder="Enter your name" class="w-full max-w-xs p-2 mb-4 bg-gray-700 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="create-session" class="w-full max-w-xs bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl transition duration-300">Create Session</button>
+        </div>
+    </div>
+
+    <script>
+        const createSessionButton = document.getElementById('create-session');
+        const usernameInput = document.getElementById('username');
+        const startModal = document.getElementById('start-modal');
+        const gameArea = document.getElementById('game-area');
+        const cardSelection = document.getElementById('card-selection');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDescription = document.getElementById('modal-description');
+        let uiRendered = false;
+        let currentSessionId = null;
+        let currentUsername = null;
+        let currentPlayerId = null;
+        let ws = null;
+
+        function renderPlayers(players) {
+            const topPlayersContainer = document.getElementById('top-players');
+            const bottomPlayersContainer = document.getElementById('bottom-players');
+            topPlayersContainer.innerHTML = '';
+            bottomPlayersContainer.innerHTML = '';
+
+            players.forEach((player, index) => {
+                const playerElement = document.createElement('div');
+                playerElement.className = 'flex flex-col items-center gap-2 my-4';
+                playerElement.setAttribute('data-player-id', player.id);
+                playerElement.innerHTML = `
+                    <div class="w-24 h-32 bg-gray-700 rounded-lg mb-2 flex items-center justify-center">
+                        <span class="player-vote text-4xl font-bold"></span>
+                    </div>
+                    <span>${player.name}</span>
+                `;
+
+                if (index % 2 === 0) {
+                    topPlayersContainer.appendChild(playerElement);
+                } else {
+                    bottomPlayersContainer.appendChild(playerElement);
+                }
+            });
+        }
+
+        function renderVotes(votes, revealed) {
+            if (!votes) return;
+
+            const allVoteElements = document.querySelectorAll('.player-vote');
+            allVoteElements.forEach(el => el.textContent = '');
+
+            for (const playerId in votes) {
+                const playerElement = document.querySelector(`[data-player-id="${playerId}"]`);
+                if (playerElement) {
+                    const voteElement = playerElement.querySelector('.player-vote');
+                    const vote = votes[playerId];
+
+                    if (revealed) {
+                        voteElement.textContent = vote;
+                    } else {
+                        voteElement.textContent = '?';
+                    }
+                }
+            }
+        }
+
+        // Function to extract session ID from URL
+        function getSessionIdFromUrl() {
+            const pathParts = window.location.pathname.split('/');
+            if (pathParts.length >= 3 && pathParts[1] === 'session') {
+                return pathParts[2];
+            }
+            return null;
+        }
+
+        // Check URL on load
+        window.onload = () => {
+            const sessionIdFromUrl = getSessionIdFromUrl();
+            if (sessionIdFromUrl) {
+                currentSessionId = sessionIdFromUrl;
+                modalTitle.textContent = 'Join Planning Poker';
+                modalDescription.textContent = 'Enter your name to join the session.';
+                createSessionButton.textContent = 'Join Session';
+            }
+        };
+
+        createSessionButton.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            if (username) {
+                currentUsername = username;
+                // Hide modal and show poker table
+                startModal.classList.add('hidden');
+                gameArea.classList.remove('hidden');
+                cardSelection.classList.remove('hidden');
+
+
+                // Open WebSocket connection
+                ws = new WebSocket('ws://' + window.location.host + '/ws');
+
+                ws.onopen = () => {
+                    console.log('WebSocket connection established');
+                    let request;
+                    if (currentSessionId) {
+                        // Join existing session
+                        request = {
+                            type: 'join',
+                            payload: {
+                                planningId: currentSessionId,
+                                player: { "id": currentPlayerId, "name": currentUsername }
+                            }
+                        };
+                    } else {
+                        // Create new session
+                        request = {
+                            type: 'create',
+                            payload: {
+                                name: "Planning Session",
+                                owner: { "name": currentUsername }
+                            }
+                        };
+                    }
+                    ws.send(JSON.stringify(request));
+                };
+
+                ws.onmessage = (event) => {
+                    console.log('Message from server: ', event.data);
+                    const response = JSON.parse(event.data);
+                    const planning = response.payload;
+
+                    switch (response.type) {
+                        case 'create':
+                            currentSessionId = planning.id;
+
+                            let currentPlayer = planning.players.find(p => p.name === currentUsername);
+                            if (currentPlayer) {
+                                currentPlayerId = currentPlayer.id;
+                            }
+
+                            window.history.pushState({ sessionId: currentSessionId }, '', '/session/' + currentSessionId);
+
+                            gameArea.classList.remove('hidden');
+                            cardSelection.classList.remove('hidden');
+                            renderPlayers(planning.players);
+                            renderCardSelection();
+
+                            if (planning.owner && planning.owner.id === currentPlayerId) {
+                                renderOwnerActions(planning.revealed);
+                            } else {
+                                clearOwnerActions();
+                            }
+                            break
+                        case 'join':
+                            if (!currentPlayerId) {
+                                currentPlayerId = planning.players.find(p => p.name === currentUsername).id;
+                            }
+                            if (!uiRendered){
+                                renderCardSelection()
+                            }
+                            renderPlayers(planning.players);
+                            renderVotes(planning.votes, planning.revealed);
+
+                            if (planning.owner && planning.owner.id === currentPlayerId) {
+                                renderOwnerActions(planning.revealed);
+                            } else {
+                                clearOwnerActions();
+                            }
+                            break
+                        case 'vote':
+                            renderPlayers(planning.players);
+                            renderVotes(planning.votes, planning.revealed);
+                            break
+                        case 'reveal':
+                        case 'reset':
+                            renderPlayers(planning.players);
+                            renderVotes(planning.votes, planning.revealed);
+                             if (planning.owner && planning.owner.id === currentPlayerId) {
+                                renderOwnerActions(planning.revealed);
+                            } else {
+                                clearOwnerActions();
+                            }
+                            break
+                        case 'player_left':
+                            renderPlayers(planning.players);
+                            renderVotes(planning.votes, planning.revealed);
+                            if (planning.owner && planning.owner.id === currentPlayerId) {
+                                renderOwnerActions(planning.revealed);
+                            } else {
+                                clearOwnerActions();
+                            }
+                            break
+                        case 'close':
+                            renderPlayers(planning.players);
+                            break
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket connection closed');
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error: ', error);
+                };
+            } else {
+                alert('Please enter your name.');
+            }
+        });
+
+        function renderOwnerActions(revealed) {
+            const container = document.getElementById('reveal-button-container');
+            container.innerHTML = ''; // Clear previous buttons
+
+            const button = document.createElement('button');
+            button.className = 'text-white font-bold py-2 px-4 rounded m-4';
+
+            if (revealed) {
+                button.textContent = 'Reset';
+                button.className += ' bg-red-500 hover:bg-red-600';
+                button.addEventListener('click', () => {
+                    const resetRequest = {
+                        type: 'reset',
+                        payload: { planningId: currentSessionId }
+                    };
+                    ws.send(JSON.stringify(resetRequest));
+                });
+            } else {
+                button.textContent = 'Reveal';
+                button.className += ' bg-green-500 hover:bg-green-600';
+                button.addEventListener('click', () => {
+                    const revealRequest = {
+                        type: 'reveal',
+                        payload: { planningId: currentSessionId }
+                    };
+                    ws.send(JSON.stringify(revealRequest));
+                });
+            }
+            container.appendChild(button);
+        }
+
+        function clearOwnerActions() {
+            const container = document.getElementById('reveal-button-container');
+            container.innerHTML = '';
+        }
+
+        function renderCardSelection() {
+            const cardSelectionContainer = document.getElementById('card-selection');
+            const cards = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, '?'];
+
+            cards.forEach(cardValue => {
+                const card = document.createElement('div');
+                card.className = 'w-24 h-32 bg-gray-700 rounded-lg border-2 border-blue-500 flex items-center justify-center text-2xl font-bold text-blue-400 cursor-pointer hover:bg-gray-600 ';
+                card.textContent = cardValue;
+                card.addEventListener('click', () => {
+                    // Send vote event
+                    const voteRequest = {
+                        type: 'vote',
+                        payload: {
+                            planningId: currentSessionId,
+                            playerId: currentPlayerId,
+                            value: cardValue
+                        }
+                    };
+                    ws.send(JSON.stringify(voteRequest));
+                    console.log('Selected card:', cardValue);
+                });
+                cardSelectionContainer.appendChild(card);
+            });
+            uiRendered = true
+        }
+    </script>
+</body>
+</html>
