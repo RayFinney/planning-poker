@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -26,10 +27,24 @@ type WebsocketHandler struct {
 }
 
 func NewWebsocketHandler(planningSvc *planningsvc.PlanningService) *WebsocketHandler {
-	return &WebsocketHandler{
+	handler := &WebsocketHandler{
 		planningSvc: planningSvc,
 		logger:      infra.GetLogger(),
 		sessions:    make(map[string]map[*websocket.Conn]bool),
+	}
+	go handler.Stats() // Start the stats logging in a separate goroutine
+	return handler
+}
+
+// Stats logs the current number of active sessions
+func (h *WebsocketHandler) Stats() {
+	for {
+		h.mu.Lock()
+		activeSessions := len(h.sessions)
+		h.mu.Unlock()
+		h.logger.Info("Active WebSocket sessions", zap.Int("count", activeSessions))
+		// Sleep for a while before logging again
+		time.Sleep(10 * time.Second)
 	}
 }
 

@@ -60,6 +60,7 @@
         let currentUsername = null;
         let currentPlayerId = null;
         let ws = null;
+        let currentVote = null;
 
         function renderPlayers(players) {
             const topPlayersContainer = document.getElementById('top-players');
@@ -101,7 +102,11 @@
                     if (revealed) {
                         voteElement.textContent = vote;
                     } else {
-                        voteElement.textContent = '?';
+                        if (playerId === currentPlayerId && currentVote !== null) {
+                            voteElement.textContent = currentVote;
+                        } else {
+                            voteElement.textContent = '?';
+                        }
                     }
                 }
             }
@@ -170,6 +175,12 @@
                     const response = JSON.parse(event.data);
                     const planning = response.payload;
 
+                    if (planning.revealed) {
+                        cardSelection.classList.add('hidden');
+                    } else {
+                        cardSelection.classList.remove('hidden');
+                    }
+
                     switch (response.type) {
                         case 'create':
                             currentSessionId = planning.id;
@@ -182,7 +193,6 @@
                             window.history.pushState({ sessionId: currentSessionId }, '', '/session/' + currentSessionId);
 
                             gameArea.classList.remove('hidden');
-                            cardSelection.classList.remove('hidden');
                             renderPlayers(planning.players);
                             renderCardSelection();
 
@@ -214,6 +224,9 @@
                             break
                         case 'reveal':
                         case 'reset':
+                            if (response.type === 'reset') {
+                                currentVote = null;
+                            }
                             renderPlayers(planning.players);
                             renderVotes(planning.votes, planning.revealed);
                              if (planning.owner && planning.owner.id === currentPlayerId) {
@@ -287,13 +300,14 @@
 
         function renderCardSelection() {
             const cardSelectionContainer = document.getElementById('card-selection');
-            const cards = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, '?'];
+            const cards = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
 
             cards.forEach(cardValue => {
                 const card = document.createElement('div');
                 card.className = 'w-24 h-32 bg-gray-700 rounded-lg border-2 border-blue-500 flex items-center justify-center text-2xl font-bold text-blue-400 cursor-pointer hover:bg-gray-600 ';
                 card.textContent = cardValue;
                 card.addEventListener('click', () => {
+                    currentVote = cardValue;
                     // Send vote event
                     const voteRequest = {
                         type: 'vote',
