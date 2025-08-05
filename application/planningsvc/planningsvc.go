@@ -90,7 +90,15 @@ func (svc *PlanningService) Leave(planningId string, playerId string) (planning.
 // Vote allows a player to vote on a planning
 func (svc *PlanningService) Vote(planningId string, playerId string, value int) error {
 	svc.logger.Debug("Player voting on planning", zap.String("planningId", planningId), zap.String("playerId", playerId), zap.Int("value", value))
-	err := svc.planningRepository.Vote(planningId, playerId, value)
+	plan, err := svc.planningRepository.GetById(planningId)
+	if err != nil {
+		svc.logger.Error("Error retrieving planning for voting", zap.String("planningId", planningId), zap.Error(err))
+		return err
+	}
+	if plan.Revealed {
+		return nil
+	}
+	err = svc.planningRepository.Vote(planningId, playerId, value)
 	if err != nil {
 		svc.logger.Error("Error recording vote", zap.String("planningId", planningId), zap.String("playerId", playerId), zap.Int("value", value), zap.Error(err))
 		return err
