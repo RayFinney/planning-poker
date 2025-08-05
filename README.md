@@ -30,6 +30,10 @@ We also believe that you shouldn't have to pay a yearly subscription for a tool 
 
 This project is a statement. A rebellion against the tyranny of over-engineering and the absurdity of freemium models for basic tools. A shining beacon of hope in a world drowning in JavaScript fatigue and unnecessary subscriptions.
 
+## Check it out
+
+You can see this masterpiece in action at [poker.kevinszabo.de](https://poker.kevinszabo.de/).
+
 ## Getting Started
 
 Prepare for the easiest setup of your life.
@@ -54,3 +58,4 @@ Got an idea? Found a bug? Feel free to open an issue or a pull request. But so h
 ---
 
 *This README was written with 100% artisanal, hand-crafted markdown.* 
+*Made in EU with <3*
