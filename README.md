@@ -26,7 +26,9 @@ Then you've come to the right place.
 
 We believe in the sanctity of simplicity. We believe that a planning poker app shouldn't require a dedicated DevOps team to deploy. We believe that you should be able to read the source code without having a stroke.
 
-This project is a statement. A rebellion against the tyranny of over-engineering. A shining beacon of hope in a world drowning in JavaScript fatigue.
+We also believe that you shouldn't have to pay a yearly subscription for a tool that could be built in a weekend. This project is a testament to that belief. While other "free" services limit you to a handful of votes before hitting a paywall, we offer a truly free and open-source solution. No limits, no subscriptions, no nonsense.
+
+This project is a statement. A rebellion against the tyranny of over-engineering and the absurdity of freemium models for basic tools. A shining beacon of hope in a world drowning in JavaScript fatigue and unnecessary subscriptions.
 
 ## Getting Started
 
