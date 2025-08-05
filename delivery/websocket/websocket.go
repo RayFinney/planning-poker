@@ -104,7 +104,12 @@ func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("failed to upgrade connection", zap.Error(err))
 		return
 	}
-	defer conn.Close()
+	defer func(conn *websocket.Conn) {
+		err := conn.Close()
+		if err != nil {
+			h.logger.Error("failed to close connection", zap.Error(err))
+		}
+	}(conn)
 
 	var planningId string
 	var playerId string
@@ -166,10 +171,7 @@ func (h *WebsocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "reset":
 			h.handleReset(event.Payload)
 		case "close":
-			newPlanningId, ok = h.handleClose(event.Payload)
-			if ok {
-				planningId = newPlanningId
-			}
+			h.handleClose(event.Payload)
 		default:
 			h.logger.Warn("unknown event type", zap.String("type", event.Type))
 		}
@@ -264,20 +266,16 @@ func (h *WebsocketHandler) handleReset(payload json.RawMessage) {
 	}
 }
 
-func (h *WebsocketHandler) handleClose(payload json.RawMessage) (string, bool) {
+func (h *WebsocketHandler) handleClose(payload json.RawMessage) {
 	var req struct {
 		PlanningId string `json:"planningId"`
 	}
 
 	if err := json.Unmarshal(payload, &req); err != nil {
 		h.logger.Error("failed to unmarshal close payload", zap.Error(err))
-		return "", false
 	}
 
 	if err := h.planningSvc.Close(req.PlanningId); err != nil {
 		h.logger.Error("failed to close planning", zap.Error(err))
-		return "", false
 	}
-
-	return req.PlanningId, true
 }
