@@ -73,6 +73,9 @@ func (p *PlanningRepository) Leave(planningId string, playerId string) (planning
 	}
 	delete(plan.Votes, playerId)
 	delete(plan.HiddenVotes, playerId)
+	if plan.Owner.Id == playerId {
+		plan.Owner = plan.Players[0]
+	}
 	p.activeSessions[planningId] = plan
 	return plan, nil
 }
