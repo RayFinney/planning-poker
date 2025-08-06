@@ -3,6 +3,7 @@ package planningsvc
 import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"html"
 	"planning-poker/domain/planning"
 	"planning-poker/infra"
 )
@@ -62,9 +63,7 @@ func (svc *PlanningService) GetById(id string, playerId string) (planning.Planni
 // Join allows a player to join a planning
 func (svc *PlanningService) Join(planningId string, player *planning.Player) (planning.Planning, error) {
 	svc.logger.Debug("Player joining planning", zap.String("planningId", planningId), zap.String("playerName", player.Name))
-	if player.Name == "" {
-		// TODO: generate a random player name
-	}
+	player.Name = html.EscapeString(player.Name)
 	player.Id = uuid.NewString()
 	p, err := svc.planningRepository.Join(planningId, *player)
 	if err != nil {
