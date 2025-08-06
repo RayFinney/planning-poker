@@ -51,6 +51,36 @@ Prepare for the easiest setup of your life.
 
 That's it. You're done. No, we're not kidding.
 
+## Running with Docker
+
+Of course, we have a Docker image. We're not savages.
+
+### Building Locally
+1.  **Build the image:**
+    ```bash
+    docker build -t planning-poker .
+    ```
+2.  **Run the container:**
+    ```bash
+    docker run -p 8080:8080 planning-poker
+    ```
+3.  **Open your browser:**
+    Navigate to `http://localhost:8080`.
+
+### Using the Pre-built Image
+You can also use the pre-built image from Docker Hub.
+
+1.  **Pull the image:**
+    ```bash
+    docker pull kevinbintzik/planning-poker:latest
+    ```
+2.  **Run the container:**
+    ```bash
+    docker run -p 8080:8080 kevinbintzik/planning-poker:latest
+    ```
+3.  **Open your browser:**
+    Navigate to `http://localhost:8080`.
+
 ## Contributing
 
 Got an idea? Found a bug? Feel free to open an issue or a pull request. But so help us, if you try to add React to this project, we will find you.
